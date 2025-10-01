@@ -67,7 +67,6 @@ La API estará disponible en: `http://localhost:8000/api/v1`
 - **[SECURITY.md](SECURITY.md)** - Guía de seguridad y mejores prácticas
 - **[QUICKSTART.md](QUICKSTART.md)** - Guía de inicio rápido
 - **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Estructura del proyecto
-- **[INTEGRATION_EXAMPLES.md](INTEGRATION_EXAMPLES.md)** - Ejemplos de integración
 
 ## 🔌 Endpoints Principales
 
@@ -178,14 +177,6 @@ php artisan permission:cache-reset
 php artisan migrate:fresh --seed
 ```
 
-## 🤝 Contribución
-
-Este es un proyecto privado. Para contribuir, contacta al equipo de desarrollo.
-
-## 📝 Licencia
-
-Proyecto propietario - Todos los derechos reservados.
-
 ## 📞 Soporte
 
 Para soporte técnico o consultas:
@@ -196,35 +187,8 @@ Para soporte técnico o consultas:
 
 **Versión**: 1.0.0  
 **Fecha**: Octubre 2025  
-**Estado**: ✅ Listo para Producción
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**Estado**: En progreso
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+NetFactureEC is a proprietary software licensed under exclusive rights. Unauthorized use, distribution, or modification is prohibited without prior consent from the author.
