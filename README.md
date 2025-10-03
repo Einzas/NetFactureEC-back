@@ -129,8 +129,8 @@ curl -X GET http://localhost:8000/api/v1/me \
 - HTTPS obligatorio
 - 2FA (Two-Factor Authentication)
 - Logs de auditoría
-- Recuperación de contraseña
-- Verificación de email
+- Recuperación de contraseña (opcional)
+- Verificación de email (opcional)
 
 ## 📦 Tecnologías Utilizadas
 
