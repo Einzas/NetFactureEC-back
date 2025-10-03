@@ -17,24 +17,21 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Public routes
-Route::prefix('v1')->group(function () {
-    // Authentication routes
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+// Public routes - Authentication
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
-    // Protected routes users
-    Route::middleware(['jwt.auth'])->group(function () {
-        // Auth endpoints
-        Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/logout', [AuthController::class, 'logout']);
-        Route::post('/refresh', [AuthController::class, 'refresh']);
+// Protected routes
+Route::middleware(['jwt.auth'])->group(function () {
+    // Auth endpoints
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
 
-        // User management (requires admin role)
-        Route::middleware(['role:admin,superadmin'])->group(function () {
-            Route::apiResource('users', UserController::class);
-            Route::apiResource('roles', RoleController::class);
-            Route::apiResource('permissions', PermissionController::class);
-        });
+    // User management (requires admin role)
+    Route::middleware(['role:admin,superadmin'])->group(function () {
+        Route::apiResource('users', UserController::class);
+        Route::apiResource('roles', RoleController::class);
+        Route::apiResource('permissions', PermissionController::class);
     });
 });
