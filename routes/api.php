@@ -23,7 +23,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
 
-    // Protected routes
+    // Protected routes users
     Route::middleware(['jwt.auth'])->group(function () {
         // Auth endpoints
         Route::get('/me', [AuthController::class, 'me']);

@@ -495,6 +495,17 @@ const getUsers = async () => {
 Para preguntas o problemas, contactar al equipo de desarrollo.
 
 ---
+## 🛠️ Guía de Contribución
+### Commit Messages
+```
+feat: nueva funcionalidad
+fix: corrección de bug
+docs: actualización de documentación
+style: cambios de formato
+refactor: refactorización de código
+test: adición o modificación de tests
+chore: tareas de mantenimiento
+```
 
 **Versión**: 1.0.0  
 **Última actualización**: Octubre 2025  
