@@ -86,15 +86,36 @@ class AuthController extends Controller
             // Update login information
             $user->updateLoginInfo($request->ip());
 
+            // Cargar datos del establishment si existe
+            $responseData = [
+                'user' => new UserResource($user->load('roles', 'permissions')),
+                'token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60
+            ];
+
+            // Agregar datos del establishment si el usuario pertenece a uno
+            if ($user->establishment_id) {
+                $user->load('establishment');
+                $responseData['establishment'] = [
+                    'id' => $user->establishment->id,
+                    'ruc' => $user->establishment->ruc,
+                    'business_name' => $user->establishment->business_name,
+                    'trade_name' => $user->establishment->trade_name,
+                    'address' => $user->establishment->address,
+                    'phone' => $user->establishment->phone,
+                    'email' => $user->establishment->email,
+                    'establishment_code' => $user->establishment->establishment_code,
+                    'emission_point' => $user->establishment->emission_point,
+                    'environment' => $user->establishment->environment,
+                    'is_active' => $user->establishment->is_active,
+                ];
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Login exitoso',
-                'data' => [
-                    'user' => new UserResource($user->load('roles', 'permissions')),
-                    'token' => $token,
-                    'token_type' => 'bearer',
-                    'expires_in' => auth('api')->factory()->getTTL() * 60
-                ]
+                'data' => $responseData
             ]);
         } catch (\Exception $e) {
             return response()->json([

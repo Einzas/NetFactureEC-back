@@ -9,26 +9,27 @@ use Symfony\Component\HttpFoundation\Response;
 class CheckPermission
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Verificar que el empleado tenga el permiso requerido
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        if (!auth()->check()) {
+        $employee = auth('employee')->user();
+
+        if (!$employee) {
             return response()->json([
                 'success' => false,
-                'message' => 'No autenticado'
+                'message' => 'No autenticado.',
             ], 401);
         }
-        
-        if (!auth()->user()->can($permission)) {
+
+        if (!$employee->can($permission)) {
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes permisos para realizar esta acción'
+                'message' => "No tienes permiso para realizar esta acción. Se requiere: {$permission}",
+                'required_permission' => $permission,
             ], 403);
         }
-        
+
         return $next($request);
     }
 }

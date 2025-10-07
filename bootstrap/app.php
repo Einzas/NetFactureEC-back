@@ -18,7 +18,14 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
         $middleware->alias([
+            // Autenticación JWT
             'jwt.auth' => \App\Http\Middleware\JwtMiddleware::class,
+            
+            // Guards específicos
+            'auth.superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'auth.owner' => \App\Http\Middleware\EnsureOwner::class,
+            
+            // RBAC para empleados
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);

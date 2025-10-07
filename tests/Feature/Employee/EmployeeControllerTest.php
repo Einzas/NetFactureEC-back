@@ -1,0 +1,514 @@
+<?php
+
+namespace Tests\Feature\Employee;
+
+use Tests\TestCase;
+use App\Models\User;
+use App\Models\Company;
+use App\Models\Employee;
+use App\Models\Role;
+use App\Models\Permission;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class EmployeeControllerTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected $owner;
+    protected $company;
+    protected $adminEmployee;
+    protected $token;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->artisan('db:seed', ['--class' => 'PermissionSeeder']);
+        $this->artisan('db:seed', ['--class' => 'RoleSeeder']);
+
+        $this->owner = User::create([
+            'type' => 'owner',
+            'name' => 'Test Owner',
+            'email' => 'owner@test.com',
+            'password' => bcrypt('password'),
+            'is_active' => true,
+        ]);
+
+        $this->company = Company::create([
+            'owner_id' => $this->owner->id,
+            'ruc' => '1790123456001',
+            'business_name' => 'Test Company',
+            'trade_name' => 'Test',
+            'address' => 'Address',
+            'city' => 'Quito',
+            'province' => 'Pichincha',
+            'email' => 'company@test.com',
+            'is_active' => true,
+        ]);
+
+        $this->adminEmployee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'admin@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Admin Employee',
+            'identification' => '1234567890001',
+            'phone' => '+593991234567',
+            'is_active' => true,
+        ]);
+
+        $adminRole = Role::where('name', 'admin')->first();
+        $this->adminEmployee->assignRole($adminRole);
+
+        $this->token = auth('employee')->login($this->adminEmployee);
+    }
+
+    /** @test */
+    public function employee_with_permission_can_list_employees()
+    {
+        // Crear empleados adicionales
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'employee1@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Employee 1',
+            'identification' => '1234567890002',
+            'is_active' => true,
+        ]);
+
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'employee2@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Employee 2',
+            'identification' => '1234567890003',
+            'is_active' => false,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/v1/employee/employees');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'employees' => [
+                        '*' => [
+                            'id',
+                            'name',
+                            'email',
+                            'identification',
+                            'phone',
+                            'is_active',
+                            'roles',
+                        ]
+                    ],
+                    'pagination',
+                ]
+            ]);
+    }
+
+    /** @test */
+    public function employee_can_create_new_employee()
+    {
+        $employeeData = [
+            'name' => 'New Employee',
+            'email' => 'new@test.com',
+            'identification' => '1234567890999',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'phone' => '+593991234567',
+            'roles' => ['sales'],
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->postJson('/api/v1/employee/employees', $employeeData);
+
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'employee' => [
+                        'id',
+                        'name',
+                        'email',
+                        'roles',
+                    ]
+                ]
+            ]);
+
+        $this->assertDatabaseHas('employees', [
+            'email' => 'new@test.com',
+            'name' => 'New Employee',
+            'company_id' => $this->company->id,
+        ]);
+    }
+
+    /** @test */
+    public function identification_must_be_13_digits()
+    {
+        $employeeData = [
+            'name' => 'Test Employee',
+            'email' => 'test@test.com',
+            'identification' => '123456789', // Solo 9 dígitos
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'roles' => ['sales'],
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->postJson('/api/v1/employee/employees', $employeeData);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['identification']);
+    }
+
+    /** @test */
+    public function identification_must_be_numeric()
+    {
+        $employeeData = [
+            'name' => 'Test Employee',
+            'email' => 'test@test.com',
+            'identification' => '123456789012A', // Contiene letra
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'roles' => ['sales'],
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->postJson('/api/v1/employee/employees', $employeeData);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['identification']);
+    }
+
+    /** @test */
+    public function email_must_be_unique_within_company()
+    {
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'existing@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Existing Employee',
+            'identification' => '1234567890999',
+            'is_active' => true,
+        ]);
+
+        $employeeData = [
+            'name' => 'New Employee',
+            'email' => 'existing@test.com', // Email duplicado
+            'identification' => '9876543210001',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'roles' => ['sales'],
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->postJson('/api/v1/employee/employees', $employeeData);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /** @test */
+    public function employee_can_view_specific_employee()
+    {
+        $employee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'view@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'View Employee',
+            'identification' => '1234567890888',
+            'phone' => '+593991111111',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/v1/employee/employees/' . $employee->id);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'employee' => [
+                        'id',
+                        'name',
+                        'email',
+                        'identification',
+                        'phone',
+                        'is_active',
+                        'roles',
+                        'permissions',
+                    ]
+                ]
+            ]);
+    }
+
+    /** @test */
+    public function employee_cannot_view_employee_from_other_company()
+    {
+        $otherOwner = User::create([
+            'type' => 'owner',
+            'name' => 'Other Owner',
+            'email' => 'other@owner.com',
+            'password' => bcrypt('password'),
+            'is_active' => true,
+        ]);
+
+        $otherCompany = Company::create([
+            'owner_id' => $otherOwner->id,
+            'ruc' => '1790123456999',
+            'business_name' => 'Other Company',
+            'trade_name' => 'Other',
+            'address' => 'Address',
+            'email' => 'other@test.com',
+            'is_active' => true,
+        ]);
+
+        $otherEmployee = Employee::create([
+            'company_id' => $otherCompany->id,
+            'email' => 'other@employee.com',
+            'password' => bcrypt('password'),
+            'name' => 'Other Employee',
+            'identification' => '9999999999999',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/v1/employee/employees/' . $otherEmployee->id);
+
+        $response->assertStatus(404);
+    }
+
+    /** @test */
+    public function employee_can_update_employee()
+    {
+        $employee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'update@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Old Name',
+            'identification' => '1234567890777',
+            'phone' => '+593991111111',
+            'is_active' => true,
+        ]);
+
+        $updateData = [
+            'name' => 'Updated Name',
+            'phone' => '+593992222222',
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->putJson('/api/v1/employee/employees/' . $employee->id, $updateData);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Empleado actualizado exitosamente',
+            ]);
+
+        $this->assertDatabaseHas('employees', [
+            'id' => $employee->id,
+            'name' => 'Updated Name',
+            'phone' => '+593992222222',
+        ]);
+    }
+
+    /** @test */
+    public function employee_can_update_their_own_profile()
+    {
+        $updateData = [
+            'name' => 'Self Updated Name',
+            'phone' => '+593993333333',
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->putJson('/api/v1/employee/employees/' . $this->adminEmployee->id, $updateData);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('employees', [
+            'id' => $this->adminEmployee->id,
+            'name' => 'Self Updated Name',
+        ]);
+    }
+
+    /** @test */
+    public function employee_can_toggle_status()
+    {
+        $employee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'toggle@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Toggle Employee',
+            'identification' => '1234567890666',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->patchJson('/api/v1/employee/employees/' . $employee->id . '/toggle-status');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $this->assertDatabaseHas('employees', [
+            'id' => $employee->id,
+            'is_active' => false,
+        ]);
+    }
+
+    /** @test */
+    public function employee_cannot_deactivate_themselves()
+    {
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->patchJson('/api/v1/employee/employees/' . $this->adminEmployee->id . '/toggle-status');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'No puedes desactivar tu propia cuenta',
+            ]);
+    }
+
+    /** @test */
+    public function employee_can_soft_delete_employee()
+    {
+        $employee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'delete@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Delete Employee',
+            'identification' => '1234567890555',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->deleteJson('/api/v1/employee/employees/' . $employee->id);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Empleado eliminado exitosamente',
+            ]);
+
+        $this->assertSoftDeleted('employees', ['id' => $employee->id]);
+    }
+
+    /** @test */
+    public function employee_can_assign_role_to_employee()
+    {
+        $employee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'role@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Role Employee',
+            'identification' => '1234567890444',
+            'is_active' => true,
+        ]);
+
+        $salesRole = Role::where('name', 'sales')->first();
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->postJson('/api/v1/employee/employees/' . $employee->id . '/roles', [
+                'role_id' => $salesRole->id,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Rol asignado exitosamente',
+            ]);
+
+        $this->assertTrue($employee->fresh()->hasRole('sales'));
+    }
+
+    /** @test */
+    public function employee_can_remove_role_from_employee()
+    {
+        $employee = Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'removerole@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Remove Role Employee',
+            'identification' => '1234567890333',
+            'is_active' => true,
+        ]);
+
+        $salesRole = Role::where('name', 'sales')->first();
+        $assistantRole = Role::where('name', 'assistant')->first();
+        // Asignar 2 roles para poder remover uno
+        $employee->assignRole($salesRole, $assistantRole);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->deleteJson('/api/v1/employee/employees/' . $employee->id . '/roles/' . $salesRole->id);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Rol removido exitosamente',
+            ]);
+
+        $this->assertFalse($employee->fresh()->hasRole('sales'));
+        $this->assertTrue($employee->fresh()->hasRole('assistant'));
+    }
+
+    /** @test */
+    public function employee_can_search_by_name()
+    {
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'john@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'John Doe',
+            'identification' => '1111111111111',
+            'is_active' => true,
+        ]);
+
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'jane@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Jane Smith',
+            'identification' => '2222222222222',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/v1/employee/employees?search=John');
+
+        $response->assertStatus(200);
+        
+        $employees = $response->json('data.employees');
+        $this->assertGreaterThan(0, count($employees));
+    }
+
+    /** @test */
+    public function employee_can_filter_by_active_status()
+    {
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'active@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Active Employee',
+            'identification' => '3333333333333',
+            'is_active' => true,
+        ]);
+
+        Employee::create([
+            'company_id' => $this->company->id,
+            'email' => 'inactive@test.com',
+            'password' => bcrypt('password'),
+            'name' => 'Inactive Employee',
+            'identification' => '4444444444444',
+            'is_active' => false,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/v1/employee/employees?is_active=1');
+
+        $response->assertStatus(200);
+    }
+}

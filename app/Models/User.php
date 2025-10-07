@@ -3,15 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
-use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -19,10 +19,12 @@ class User extends Authenticatable implements JWTSubject
      * @var array<int, string>
      */
     protected $fillable = [
+        'type',
         'name',
         'email',
         'password',
         'phone',
+        'avatar',
         'is_active',
         'last_login_at',
         'last_login_ip',
@@ -46,9 +48,9 @@ class User extends Authenticatable implements JWTSubject
     protected function casts(): array
     {
         return [
+            'is_active' => 'boolean',
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
-            'is_active' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -71,13 +73,57 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [
-            'email' => $this->email,
+            'type' => $this->type,
             'name' => $this->name,
+            'email' => $this->email,
         ];
     }
 
     /**
-     * Scope a query to only include active users.
+     * Empresas del owner
+     */
+    public function companies(): HasMany
+    {
+        return $this->hasMany(Company::class, 'owner_id');
+    }
+
+    /**
+     * Archivos subidos por el owner
+     */
+    public function uploadedFiles(): HasMany
+    {
+        return $this->hasMany(UploadedFile::class);
+    }
+
+    /**
+     * Verificar si es superadministrador
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->type === 'superadmin';
+    }
+
+    /**
+     * Verificar si es owner
+     */
+    public function isOwner(): bool
+    {
+        return $this->type === 'owner';
+    }
+
+    /**
+     * Actualizar último login
+     */
+    public function updateLastLogin(?string $ip = null): void
+    {
+        $this->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $ip ?? request()->ip(),
+        ]);
+    }
+
+    /**
+     * Scope: Solo activos
      */
     public function scopeActive($query)
     {
@@ -85,13 +131,26 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Update last login information
+     * Get active companies.
      */
-    public function updateLoginInfo($ip)
+    public function activeCompanies()
     {
-        $this->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $ip,
-        ]);
+        return $this->companies()->where('is_active', true);
+    }
+
+    /**
+     * Scope: Solo superadmins
+     */
+    public function scopeSuperAdmins($query)
+    {
+        return $query->where('type', 'superadmin');
+    }
+
+    /**
+     * Scope: Solo owners
+     */
+    public function scopeOwners($query)
+    {
+        return $query->where('type', 'owner');
     }
 }

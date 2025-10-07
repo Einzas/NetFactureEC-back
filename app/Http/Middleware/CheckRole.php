@@ -9,26 +9,27 @@ use Symfony\Component\HttpFoundation\Response;
 class CheckRole
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Verificar que el empleado tenga el rol requerido
      */
-    public function handle(Request $request, Closure $next, string ...$roles): Response
+    public function handle(Request $request, Closure $next, string $role): Response
     {
-        if (!auth()->check()) {
+        $employee = auth('employee')->user();
+
+        if (!$employee) {
             return response()->json([
                 'success' => false,
-                'message' => 'No autenticado'
+                'message' => 'No autenticado.',
             ], 401);
         }
-        
-        if (!auth()->user()->hasAnyRole($roles)) {
+
+        if (!$employee->hasRole($role)) {
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes el rol necesario para acceder a este recurso'
+                'message' => "No tienes el rol requerido para esta acción. Se requiere: {$role}",
+                'required_role' => $role,
             ], 403);
         }
-        
+
         return $next($request);
     }
 }

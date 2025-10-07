@@ -14,7 +14,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
+        'guard' => env('AUTH_GUARD', 'api'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
@@ -23,15 +23,10 @@ return [
     | Authentication Guards
     |--------------------------------------------------------------------------
     |
-    | Next, you may define every authentication guard for your application.
-    | Of course, a great default configuration has been defined for you
-    | which utilizes session storage plus the Eloquent user provider.
-    |
-    | All authentication guards have a user provider, which defines how the
-    | users are actually retrieved out of your database or other storage
-    | system used by the application. Typically, Eloquent is utilized.
-    |
-    | Supported: "session"
+    | Sistema de autenticación triple:
+    | - superadmin: Para superadministradores del sistema
+    | - owner: Para dueños de empresas
+    | - employee: Para empleados de empresas con RBAC
     |
     */
 
@@ -40,6 +35,29 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        
+        // Guard para Superadmins
+        'superadmin' => [
+            'driver' => 'jwt',
+            'provider' => 'superadmins',
+            'hash' => false,
+        ],
+        
+        // Guard para Owners (dueños de empresas)
+        'owner' => [
+            'driver' => 'jwt',
+            'provider' => 'owners',
+            'hash' => false,
+        ],
+        
+        // Guard para Employees (empleados de empresas)
+        'employee' => [
+            'driver' => 'jwt',
+            'provider' => 'employees',
+            'hash' => false,
+        ],
+        
+        // Guard API legacy (por compatibilidad)
         'api' => [
             'driver' => 'jwt',
             'provider' => 'users',
@@ -52,22 +70,29 @@ return [
     | User Providers
     |--------------------------------------------------------------------------
     |
-    | All authentication guards have a user provider, which defines how the
-    | users are actually retrieved out of your database or other storage
-    | system used by the application. Typically, Eloquent is utilized.
-    |
-    | If you have multiple user tables or models you may configure multiple
-    | providers to represent the model / table. These providers may then
-    | be assigned to any extra authentication guards you have defined.
-    |
-    | Supported: "database", "eloquent"
+    | Proveedores para cada tipo de usuario del sistema
     |
     */
 
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => App\Models\User::class,
+        ],
+        
+        'superadmins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
+        
+        'owners' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
+        
+        'employees' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Employee::class,
         ],
 
         // 'users' => [
@@ -99,6 +124,13 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        
+        'employees' => [
+            'provider' => 'employees',
+            'table' => 'password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,
         ],
